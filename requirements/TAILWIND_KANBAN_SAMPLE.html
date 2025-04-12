@@ -1,0 +1,61 @@
+<!-- Sample Kanban Board Redesign with Tailwind CSS CDN -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stylish Kanban Retrospective Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-blue-100 min-h-screen">
+  <div class="container mx-auto py-8">
+    <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">Retrospective Kanban Board</h1>
+    <div class="flex flex-col md:flex-row gap-6 justify-center">
+      <!-- Went Well Column -->
+      <div class="bg-white rounded-xl shadow-lg flex-1 p-4 border-t-8 border-green-400 flex flex-col">
+        <div class="flex items-center justify-center mb-2">
+          <span class="text-2xl mr-2">✅</span>
+          <h2 class="text-xl font-semibold text-green-700">Went Well</h2>
+        </div>
+        <form class="flex mb-4 gap-2">
+          <input class="flex-1 rounded border border-green-200 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-green-300" placeholder="Add positive feedback..." />
+          <button class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition">Add</button>
+        </form>
+        <ul class="space-y-2 flex-1 overflow-y-auto">
+          <li class="bg-green-50 border-l-4 border-green-400 rounded p-3 shadow hover:shadow-md transition">🚀 Great teamwork!</li>
+          <li class="bg-green-50 border-l-4 border-green-400 rounded p-3 shadow hover:shadow-md transition">✅ Finished sprint goals</li>
+        </ul>
+      </div>
+      <!-- To Improve Column -->
+      <div class="bg-white rounded-xl shadow-lg flex-1 p-4 border-t-8 border-yellow-400 flex flex-col">
+        <div class="flex items-center justify-center mb-2">
+          <span class="text-2xl mr-2">⚠️</span>
+          <h2 class="text-xl font-semibold text-yellow-700">To Improve</h2>
+        </div>
+        <form class="flex mb-4 gap-2">
+          <input class="flex-1 rounded border border-yellow-200 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-300" placeholder="Add improvement..." />
+          <button class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition">Add</button>
+        </form>
+        <ul class="space-y-2 flex-1 overflow-y-auto">
+          <li class="bg-yellow-50 border-l-4 border-yellow-400 rounded p-3 shadow hover:shadow-md transition">🕒 Standups ran long</li>
+        </ul>
+      </div>
+      <!-- Action Items Column -->
+      <div class="bg-white rounded-xl shadow-lg flex-1 p-4 border-t-8 border-blue-400 flex flex-col">
+        <div class="flex items-center justify-center mb-2">
+          <span class="text-2xl mr-2">📝</span>
+          <h2 class="text-xl font-semibold text-blue-700">Action Items</h2>
+        </div>
+        <form class="flex mb-4 gap-2">
+          <input class="flex-1 rounded border border-blue-200 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Add action item..." />
+          <button class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Add</button>
+        </form>
+        <ul class="space-y-2 flex-1 overflow-y-auto">
+          <li class="bg-blue-50 border-l-4 border-blue-400 rounded p-3 shadow hover:shadow-md transition">🔄 Try async standups</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
