@@ -4,105 +4,40 @@
   <meta charset="UTF-8">
   <title>Retrospective Session App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    h1 { color: #2c3e50; }
-    .container { max-width: 1000px; margin: auto; }
-    .info { margin: 1rem 0; color: #555; }
-    .session-form { margin: 2rem 0; }
-    .session-key { font-weight: bold; color: #2980b9; }
-    .hidden { display: none; }
-    .error { color: #c0392b; }
-    .kanban-board {
-      display: flex;
-      gap: 1.5rem;
-      margin-top: 2rem;
-      justify-content: center;
-    }
-    .kanban-column {
-      background: #f4f6fa;
-      border-radius: 8px;
-      padding: 1rem;
-      min-width: 250px;
-      flex: 1 1 0;
-      box-shadow: 0 2px 8px #0001;
-      display: flex;
-      flex-direction: column;
-      max-height: 60vh;
-    }
-    .kanban-column h3 {
-      margin-top: 0;
-      text-align: center;
-    }
-    .kanban-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      flex: 1 1 0;
-      overflow-y: auto;
-      min-height: 40px;
-    }
-    .kanban-card {
-      background: #fff;
-      border-radius: 5px;
-      margin-bottom: 0.5rem;
-      padding: 0.5rem 0.75rem;
-      box-shadow: 0 1px 3px #0002;
-      cursor: grab;
-      user-select: none;
-    }
-    .kanban-card.dragging {
-      opacity: 0.5;
-    }
-    .kanban-add-form {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    .kanban-add-form input {
-      flex: 1 1 0;
-      padding: 0.25rem 0.5rem;
-    }
-    .kanban-add-form button {
-      padding: 0.25rem 0.75rem;
-    }
-    .timer-container {
-      text-align: center;
-      margin: 1rem 0;
-      font-size: 1.2em;
-      color: #2c3e50;
-    }
-  </style>
+  <!-- Tailwind CSS CDN for modern styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="container">
-    <h1>Retrospective Session App</h1>
-    <div class="info">
+<body class="bg-gradient-to-br from-slate-100 to-blue-100 min-h-screen">
+  <div class="container mx-auto py-8">
+    <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">Retrospective Session App</h1>
+    <div class="info text-center text-slate-600 mb-4">
       <p>Create a new session or join an existing one using a session key.</p>
     </div>
-    <div class="session-form">
-      <form id="create-session-form" style="display:inline;">
-        <button type="submit" id="create-session-btn">Create New Session</button>
-        <label for="timer-minutes" style="margin-left:1rem;">Timer (minutes):</label>
-        <input type="number" id="timer-minutes" min="1" max="30" value="5" style="width:60px;">
+    <div class="session-form flex flex-col md:flex-row items-center justify-center gap-4 mb-6">
+      <form id="create-session-form" class="flex items-center gap-2">
+        <button type="submit" id="create-session-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Create New Session</button>
+        <label for="timer-minutes" class="ml-2 text-slate-700">Timer (minutes):</label>
+        <input type="number" id="timer-minutes" min="1" max="30" value="5" class="w-20 rounded border border-blue-200 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300" />
       </form>
-      <form id="join-session-form" style="display:inline;">
-        <input type="text" id="join-session-key" placeholder="Session Key" required>
-        <button type="submit">Join Session</button>
+      <form id="join-session-form" class="flex items-center gap-2">
+        <input type="text" id="join-session-key" placeholder="Session Key" required class="rounded border border-slate-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">Join Session</button>
       </form>
-      <div id="session-key-container" class="hidden">
-        <p>Your session key: <span id="session-key" class="session-key"></span></p>
-        <p>Share this key with participants to join your session.</p>
-      </div>
-      <div id="error-msg" class="error"></div>
     </div>
+    <div id="session-key-container" class="hidden text-center mb-4">
+      <p>Your session key: <span id="session-key" class="font-bold text-blue-700"></span></p>
+      <p>Share this key with participants to join your session.</p>
+    </div>
+    <div id="error-msg" class="text-center text-red-600 mb-4"></div>
     <div id="session-area" class="hidden">
-      <h2>Session: <span id="active-session-key"></span></h2>
-      <div class="timer-container" id="timer-container"></div>
-      <div class="kanban-board" id="kanban-board">
+      <h2 class="text-xl font-semibold text-center text-blue-700 mb-2">Session: <span id="active-session-key"></span></h2>
+      <div class="timer-container text-center text-lg text-slate-700 mb-4" id="timer-container"></div>
+      <div class="flex flex-col md:flex-row gap-6 justify-center" id="kanban-board">
         <!-- Columns will be rendered here -->
       </div>
-      <button id="export-json-btn" style="margin-top:1.5rem;">Export Session as JSON</button>
+      <div class="flex justify-center">
+        <button id="export-json-btn" class="mt-6 bg-slate-700 text-white px-4 py-2 rounded hover:bg-slate-800 transition">Export Session as JSON</button>
+      </div>
     </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
@@ -129,9 +64,9 @@
     const timerContainer = document.getElementById('timer-container');
 
     const COLUMNS = [
-      { key: 'wentWell', label: 'Went Well' },
-      { key: 'toImprove', label: 'To Improve' },
-      { key: 'actionItem', label: 'Action Items' }
+      { key: 'wentWell', label: 'Went Well', color: 'green', icon: '✅' },
+      { key: 'toImprove', label: 'To Improve', color: 'yellow', icon: '⚠️' },
+      { key: 'actionItem', label: 'Action Items', color: 'blue', icon: '📝' }
     ];
 
     createForm.onsubmit = (e) => {
@@ -208,22 +143,49 @@
       }
     }
 
-    // Kanban rendering
+    // Kanban rendering with Tailwind classes
     function renderKanban(feedbackArr) {
       kanbanBoard.innerHTML = '';
       COLUMNS.forEach(col => {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'kanban-column';
-        colDiv.dataset.column = col.key;
+        // Color classes
+        const borderColor = {
+          green: 'border-t-8 border-green-400',
+          yellow: 'border-t-8 border-yellow-400',
+          blue: 'border-t-8 border-blue-400'
+        }[col.color];
+        const headerColor = {
+          green: 'text-green-700',
+          yellow: 'text-yellow-700',
+          blue: 'text-blue-700'
+        }[col.color];
+        const cardBorder = {
+          green: 'border-l-4 border-green-400 bg-green-50',
+          yellow: 'border-l-4 border-yellow-400 bg-yellow-50',
+          blue: 'border-l-4 border-blue-400 bg-blue-50'
+        }[col.color];
+        const inputRing = {
+          green: 'focus:ring-green-300 border-green-200',
+          yellow: 'focus:ring-yellow-300 border-yellow-200',
+          blue: 'focus:ring-blue-300 border-blue-200'
+        }[col.color];
+        const btnColor = {
+          green: 'bg-green-500 hover:bg-green-600',
+          yellow: 'bg-yellow-500 hover:bg-yellow-600',
+          blue: 'bg-blue-500 hover:bg-blue-600'
+        }[col.color];
 
-        const h3 = document.createElement('h3');
-        h3.textContent = col.label;
-        colDiv.appendChild(h3);
+        const colDiv = document.createElement('div');
+        colDiv.className = `bg-white rounded-xl shadow-lg flex-1 p-4 ${borderColor} flex flex-col`;
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex items-center justify-center mb-2';
+        headerDiv.innerHTML = `<span class="text-2xl mr-2">${col.icon}</span><h2 class="text-xl font-semibold ${headerColor}">${col.label}</h2>`;
+        colDiv.appendChild(headerDiv);
 
         // Add form
         if (sessionPhase === "obfuscate") {
           const form = document.createElement('form');
-          form.className = 'kanban-add-form';
+          form.className = 'flex mb-4 gap-2';
           form.onsubmit = (e) => {
             e.preventDefault();
             const input = form.querySelector('input');
@@ -236,31 +198,33 @@
           const input = document.createElement('input');
           input.type = 'text';
           input.placeholder = `Add to "${col.label}"...`;
+          input.className = `flex-1 rounded px-3 py-1 border ${inputRing} focus:outline-none focus:ring-2`;
           form.appendChild(input);
           const btn = document.createElement('button');
           btn.type = 'submit';
           btn.textContent = 'Add';
+          btn.className = `${btnColor} text-white px-3 py-1 rounded transition`;
           form.appendChild(btn);
           colDiv.appendChild(form);
         }
 
         // List
         const ul = document.createElement('ul');
-        ul.className = 'kanban-list';
+        ul.className = 'space-y-2 flex-1 overflow-y-auto';
         ul.dataset.column = col.key;
 
         // Drag-and-drop events (only after reveal)
         if (sessionPhase !== "obfuscate") {
           ul.ondragover = (e) => {
             e.preventDefault();
-            ul.style.background = '#e0e7ef';
+            ul.classList.add('bg-slate-200');
           };
           ul.ondragleave = () => {
-            ul.style.background = '';
+            ul.classList.remove('bg-slate-200');
           };
           ul.ondrop = (e) => {
             e.preventDefault();
-            ul.style.background = '';
+            ul.classList.remove('bg-slate-200');
             const feedbackId = e.dataTransfer.getData('text/plain');
             if (feedbackId && currentSessionKey) {
               socket.emit('moveFeedback', { sessionKey: currentSessionKey, feedbackId, newType: col.key });
@@ -270,7 +234,7 @@
 
         feedbackArr.filter(item => item.type === col.key).forEach(item => {
           const li = document.createElement('li');
-          li.className = 'kanban-card';
+          li.className = `rounded p-3 shadow hover:shadow-md transition ${cardBorder}`;
           if (sessionPhase === "obfuscate") {
             li.textContent = "Feedback added";
           } else {
@@ -278,11 +242,11 @@
             li.draggable = true;
             li.dataset.id = item.id;
             li.ondragstart = (e) => {
-              li.classList.add('dragging');
+              li.classList.add('opacity-50');
               e.dataTransfer.setData('text/plain', item.id);
             };
             li.ondragend = () => {
-              li.classList.remove('dragging');
+              li.classList.remove('opacity-50');
             };
           }
           ul.appendChild(li);
