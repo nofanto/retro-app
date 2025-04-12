@@ -49,17 +49,40 @@ function generateSessionKey(length = 6) {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // Create a new session
-  socket.on('createSession', () => {
+  // Create a new session with configurable timer
+  socket.on('createSession', ({ duration }) => {
+    // Validate duration
+    let minutes = parseInt(duration, 10);
+    if (isNaN(minutes) || minutes < 1 || minutes > 30) {
+      socket.emit('sessionError', 'Timer must be between 1 and 30 minutes.');
+      return;
+    }
     let key;
     do {
       key = generateSessionKey();
     } while (sessions[key]);
-    sessions[key] = { participants: new Set([socket.id]), feedback: [] };
+    const now = Date.now();
+    const endTime = now + minutes * 60 * 1000;
+    sessions[key] = {
+      participants: new Set([socket.id]),
+      feedback: [],
+      phase: "obfuscate",
+      startTime: now,
+      duration: minutes,
+      endTime,
+      timer: null
+    };
     socket.join(key);
     socket.sessionKey = key;
-    socket.emit('sessionCreated', key);
-    console.log(`Session created: ${key}`);
+    socket.emit('sessionCreated', { key, duration: minutes, endTime });
+    console.log(`Session created: ${key} with timer ${minutes} min`);
+
+    // Start timer for phase transition
+    sessions[key].timer = setTimeout(() => {
+      sessions[key].phase = "reveal";
+      io.to(key).emit('phaseUpdate', { phase: "reveal", endTime: null });
+      sessions[key].timer = null;
+    }, minutes * 60 * 1000);
   });
 
   // Join an existing session
@@ -68,7 +91,13 @@ io.on('connection', (socket) => {
       sessions[key].participants.add(socket.id);
       socket.join(key);
       socket.sessionKey = key;
-      socket.emit('sessionJoined', key);
+      // Send session info including timer and phase
+      socket.emit('sessionJoined', {
+        key,
+        duration: sessions[key].duration,
+        endTime: sessions[key].phase === "obfuscate" ? sessions[key].endTime : null,
+        phase: sessions[key].phase
+      });
       console.log(`Socket ${socket.id} joined session ${key}`);
     } else {
       socket.emit('sessionError', 'Session not found.');
@@ -113,8 +142,32 @@ io.on('connection', (socket) => {
   // Feedback: get feedback list
   socket.on('getFeedback', (sessionKey) => {
     if (sessions[sessionKey]) {
-      socket.emit('feedbackUpdate', sessions[sessionKey].feedback);
+      // Obfuscate feedback if in obfuscate phase
+      if (sessions[sessionKey].phase === "obfuscate") {
+        // Only send obfuscated feedback (no text, just count)
+        const obfuscated = sessions[sessionKey].feedback.map(item => ({
+          id: item.id,
+          type: item.type
+        }));
+        socket.emit('feedbackUpdate', obfuscated);
+      } else {
+        socket.emit('feedbackUpdate', sessions[sessionKey].feedback);
+      }
     }
+  });
+
+  // Clean up timer on session delete
+  socket.on('disconnect', () => {
+    const key = socket.sessionKey;
+    if (key && sessions[key]) {
+      sessions[key].participants.delete(socket.id);
+      if (sessions[key].participants.size === 0) {
+        if (sessions[key].timer) clearTimeout(sessions[key].timer);
+        delete sessions[key];
+        console.log(`Session ${key} deleted (no participants left)`);
+      }
+    }
+    console.log('User disconnected:', socket.id);
   });
 });
 
