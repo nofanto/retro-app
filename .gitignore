@@ -1,0 +1,29 @@
+# Node.js dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+
+# Optional npm cache directory
+.npm
+
+# Coverage directory
+coverage/
+
+# IDE files
+.vscode/
+.idea/
