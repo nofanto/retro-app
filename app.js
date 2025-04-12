@@ -70,6 +70,22 @@ io.on('connection', (socket) => {
     }
     console.log('User disconnected:', socket.id);
   });
+  // Feedback: add feedback
+  socket.on('addFeedback', ({ sessionKey, text }) => {
+    if (sessions[sessionKey]) {
+      const feedbackItem = { text, createdBy: socket.id, timestamp: Date.now() };
+      sessions[sessionKey].feedback.push(feedbackItem);
+      // Broadcast updated feedback to all in session
+      io.to(sessionKey).emit('feedbackUpdate', sessions[sessionKey].feedback);
+    }
+  });
+
+  // Feedback: get feedback list
+  socket.on('getFeedback', (sessionKey) => {
+    if (sessions[sessionKey]) {
+      socket.emit('feedbackUpdate', sessions[sessionKey].feedback);
+    }
+  });
 });
 
 server.listen(PORT, () => {

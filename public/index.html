@@ -9,21 +9,137 @@
     h1 { color: #2c3e50; }
     .container { max-width: 600px; margin: auto; }
     .info { margin: 1rem 0; color: #555; }
+    .session-form { margin: 2rem 0; }
+    .session-key { font-weight: bold; color: #2980b9; }
+    .hidden { display: none; }
+    .error { color: #c0392b; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Retrospective Session App</h1>
     <div class="info">
-      <p>Welcome! The server is running.<br>
-      This is the starting point for your real-time, local retrospective app.</p>
+      <p>Create a new session or join an existing one using a session key.</p>
+    </div>
+    <div class="session-form">
+      <button id="create-session-btn">Create New Session</button>
+      <form id="join-session-form" style="display:inline;">
+        <input type="text" id="join-session-key" placeholder="Session Key" required>
+        <button type="submit">Join Session</button>
+      </form>
+      <div id="session-key-container" class="hidden">
+        <p>Your session key: <span id="session-key" class="session-key"></span></p>
+        <p>Share this key with participants to join your session.</p>
+      </div>
+      <div id="error-msg" class="error"></div>
+    </div>
+    <div id="session-area" class="hidden">
+      <h2>Session: <span id="active-session-key"></span></h2>
+      <!-- Feedback UI will go here -->
+      <div id="feedback-section"></div>
+      <form id="feedback-form" style="margin-top:1.5rem;">
+        <input type="text" id="feedback-input" placeholder="Add feedback..." required style="width:70%;">
+        <button type="submit">Add</button>
+      </form>
+      <ul id="feedback-list"></ul>
     </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    socket.on('connect', () => {
-      console.log('Connected to server:', socket.id);
+    let currentSessionKey = null;
+
+    const createBtn = document.getElementById('create-session-btn');
+    const joinForm = document.getElementById('join-session-form');
+    const joinInput = document.getElementById('join-session-key');
+    const sessionKeyContainer = document.getElementById('session-key-container');
+    const sessionKeySpan = document.getElementById('session-key');
+    const errorMsg = document.getElementById('error-msg');
+    const sessionArea = document.getElementById('session-area');
+    const activeSessionKey = document.getElementById('active-session-key');
+
+    createBtn.onclick = () => {
+      socket.emit('createSession');
+    };
+
+    joinForm.onsubmit = (e) => {
+      e.preventDefault();
+      const key = joinInput.value.trim();
+      if (key) {
+        socket.emit('joinSession', key);
+      }
+    };
+
+    socket.on('sessionCreated', (key) => {
+      currentSessionKey = key;
+      sessionKeySpan.textContent = key;
+      sessionKeyContainer.classList.remove('hidden');
+      errorMsg.textContent = '';
+      joinForm.style.display = 'none';
+      createBtn.style.display = 'none';
+      sessionArea.classList.remove('hidden');
+      activeSessionKey.textContent = key;
+    });
+
+    socket.on('sessionJoined', (key) => {
+      currentSessionKey = key;
+      sessionKeyContainer.classList.add('hidden');
+      errorMsg.textContent = '';
+      joinForm.style.display = 'none';
+      createBtn.style.display = 'none';
+      sessionArea.classList.remove('hidden');
+      activeSessionKey.textContent = key;
+    });
+
+    socket.on('sessionError', (msg) => {
+      errorMsg.textContent = msg;
+    });
+    // Feedback logic
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackInput = document.getElementById('feedback-input');
+    const feedbackList = document.getElementById('feedback-list');
+
+    function renderFeedback(feedbackArr) {
+      feedbackList.innerHTML = '';
+      feedbackArr.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.textContent = item.text;
+        feedbackList.appendChild(li);
+      });
+    }
+
+    // Submit feedback
+    if (feedbackForm) {
+      feedbackForm.onsubmit = (e) => {
+        e.preventDefault();
+        const text = feedbackInput.value.trim();
+        if (text && currentSessionKey) {
+          socket.emit('addFeedback', { sessionKey: currentSessionKey, text });
+          feedbackInput.value = '';
+        }
+      };
+    }
+
+    // Receive feedback update
+    socket.on('feedbackUpdate', (feedbackArr) => {
+      renderFeedback(feedbackArr);
+    });
+
+    // Request feedback list after joining/creating session
+    function requestFeedback() {
+      if (currentSessionKey) {
+        socket.emit('getFeedback', currentSessionKey);
+      }
+    }
+
+    socket.on('sessionCreated', (key) => {
+      // ...existing code...
+      requestFeedback();
+    });
+
+    socket.on('sessionJoined', (key) => {
+      // ...existing code...
+      requestFeedback();
     });
   </script>
 </body>
