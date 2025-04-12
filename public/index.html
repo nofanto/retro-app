@@ -137,13 +137,15 @@
         timerContainer.textContent = `Time left: ${min}:${sec.toString().padStart(2, '0')}`;
       } else if (sessionPhase === "obfuscate") {
         timerContainer.textContent = "Time's up! Revealing feedback...";
+      } else if (sessionPhase === "voting") {
+        timerContainer.textContent = "Voting phase: Upvote or downvote feedback!";
       } else {
         timerContainer.textContent = "";
         clearInterval(timerInterval);
       }
     }
 
-    // Kanban rendering with Tailwind classes
+    // Kanban rendering with Tailwind classes and voting
     function renderKanban(feedbackArr) {
       kanbanBoard.innerHTML = '';
       COLUMNS.forEach(col => {
@@ -234,11 +236,45 @@
 
         feedbackArr.filter(item => item.type === col.key).forEach(item => {
           const li = document.createElement('li');
-          li.className = `rounded p-3 shadow hover:shadow-md transition ${cardBorder}`;
+          li.className = `rounded p-3 shadow hover:shadow-md transition ${cardBorder} flex items-center justify-between`;
           if (sessionPhase === "obfuscate") {
             li.textContent = "Feedback added";
           } else {
-            li.textContent = item.text;
+            // Feedback text
+            const textSpan = document.createElement('span');
+            textSpan.textContent = item.text;
+            li.appendChild(textSpan);
+
+            // Voting controls
+            if (sessionPhase === "voting") {
+              const votes = item.votes || {};
+              const upvotes = Object.values(votes).filter(v => v === 1).length;
+              const downvotes = Object.values(votes).filter(v => v === -1).length;
+
+              const voteDiv = document.createElement('div');
+              voteDiv.className = "flex items-center gap-2 ml-4";
+
+              const upBtn = document.createElement('button');
+              upBtn.innerHTML = `👍 <span>${upvotes}</span>`;
+              upBtn.className = "px-2 py-1 rounded bg-green-200 hover:bg-green-300 transition";
+              upBtn.onclick = (e) => {
+                e.preventDefault();
+                socket.emit('voteFeedback', { sessionKey: currentSessionKey, feedbackId: item.id, vote: 1 });
+              };
+
+              const downBtn = document.createElement('button');
+              downBtn.innerHTML = `👎 <span>${downvotes}</span>`;
+              downBtn.className = "px-2 py-1 rounded bg-red-200 hover:bg-red-300 transition";
+              downBtn.onclick = (e) => {
+                e.preventDefault();
+                socket.emit('voteFeedback', { sessionKey: currentSessionKey, feedbackId: item.id, vote: -1 });
+              };
+
+              voteDiv.appendChild(upBtn);
+              voteDiv.appendChild(downBtn);
+              li.appendChild(voteDiv);
+            }
+
             li.draggable = true;
             li.dataset.id = item.id;
             li.ondragstart = (e) => {

@@ -81,6 +81,13 @@ io.on('connection', (socket) => {
     sessions[key].timer = setTimeout(() => {
       sessions[key].phase = "reveal";
       io.to(key).emit('phaseUpdate', { phase: "reveal", endTime: null });
+      // After 5 seconds in reveal, move to voting phase
+      setTimeout(() => {
+        if (sessions[key]) {
+          sessions[key].phase = "voting";
+          io.to(key).emit('phaseUpdate', { phase: "voting", endTime: null });
+        }
+      }, 5000);
       sessions[key].timer = null;
     }, minutes * 60 * 1000);
   });
@@ -120,7 +127,7 @@ io.on('connection', (socket) => {
   socket.on('addFeedback', ({ sessionKey, text, type }) => {
     const validTypes = ['wentWell', 'toImprove', 'actionItem'];
     if (sessions[sessionKey] && validTypes.includes(type)) {
-      const feedbackItem = { text, type, createdBy: socket.id, timestamp: Date.now(), id: Math.random().toString(36).substr(2, 9) };
+      const feedbackItem = { text, type, createdBy: socket.id, timestamp: Date.now(), id: Math.random().toString(36).substr(2, 9), votes: {} };
       sessions[sessionKey].feedback.push(feedbackItem);
       // Broadcast updated feedback to all in session
       io.to(sessionKey).emit('feedbackUpdate', sessions[sessionKey].feedback);
@@ -168,6 +175,20 @@ io.on('connection', (socket) => {
       }
     }
     console.log('User disconnected:', socket.id);
+  });
+  // Voting: upvote/downvote feedback
+  socket.on('voteFeedback', ({ sessionKey, feedbackId, vote }) => {
+    if (sessions[sessionKey] && sessions[sessionKey].phase === "voting") {
+      const item = sessions[sessionKey].feedback.find(fb => fb.id === feedbackId);
+      if (item) {
+        if (!item.votes) item.votes = {};
+        // Only allow 1 or -1
+        if (vote === 1 || vote === -1) {
+          item.votes[socket.id] = vote;
+          io.to(sessionKey).emit('feedbackUpdate', sessions[sessionKey].feedback);
+        }
+      }
+    }
   });
 });
 
