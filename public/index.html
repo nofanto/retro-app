@@ -42,6 +42,7 @@
         <button type="submit">Add</button>
       </form>
       <ul id="feedback-list"></ul>
+      <button id="export-json-btn" style="margin-top:1.5rem;">Export Session as JSON</button>
     </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
@@ -141,6 +142,15 @@
       // ...existing code...
       requestFeedback();
     });
+    // Export session as JSON
+    const exportBtn = document.getElementById('export-json-btn');
+    if (exportBtn) {
+      exportBtn.onclick = () => {
+        if (currentSessionKey) {
+          window.open(`/export/${currentSessionKey}`, '_blank');
+        }
+      };
+    }
   </script>
 </body>
 </html>

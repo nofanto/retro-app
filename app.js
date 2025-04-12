@@ -12,6 +12,23 @@ const PORT = 3000;
 // Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Export session as JSON
+app.get('/export/:sessionKey', (req, res) => {
+  const { sessionKey } = req.params;
+  const session = sessions[sessionKey];
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  const exportData = {
+    sessionKey,
+    feedback: session.feedback,
+    exportedAt: new Date().toISOString(),
+  };
+  res.setHeader('Content-Disposition', `attachment; filename="retro-session-${sessionKey}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(exportData, null, 2));
+});
+
 /**
  * In-memory session store.
  * Structure: { [sessionKey]: { participants: Set<socket.id>, ...futureData } }
