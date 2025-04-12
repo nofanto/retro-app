@@ -87,13 +87,26 @@ io.on('connection', (socket) => {
     }
     console.log('User disconnected:', socket.id);
   });
-  // Feedback: add feedback
-  socket.on('addFeedback', ({ sessionKey, text }) => {
-    if (sessions[sessionKey]) {
-      const feedbackItem = { text, createdBy: socket.id, timestamp: Date.now() };
+  // Feedback: add feedback to a specific column
+  socket.on('addFeedback', ({ sessionKey, text, type }) => {
+    const validTypes = ['wentWell', 'toImprove', 'actionItem'];
+    if (sessions[sessionKey] && validTypes.includes(type)) {
+      const feedbackItem = { text, type, createdBy: socket.id, timestamp: Date.now(), id: Math.random().toString(36).substr(2, 9) };
       sessions[sessionKey].feedback.push(feedbackItem);
       // Broadcast updated feedback to all in session
       io.to(sessionKey).emit('feedbackUpdate', sessions[sessionKey].feedback);
+    }
+  });
+
+  // Feedback: move feedback between columns
+  socket.on('moveFeedback', ({ sessionKey, feedbackId, newType }) => {
+    const validTypes = ['wentWell', 'toImprove', 'actionItem'];
+    if (sessions[sessionKey] && validTypes.includes(newType)) {
+      const item = sessions[sessionKey].feedback.find(fb => fb.id === feedbackId);
+      if (item) {
+        item.type = newType;
+        io.to(sessionKey).emit('feedbackUpdate', sessions[sessionKey].feedback);
+      }
     }
   });
 

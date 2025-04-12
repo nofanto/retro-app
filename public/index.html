@@ -7,12 +7,65 @@
   <style>
     body { font-family: sans-serif; margin: 2rem; }
     h1 { color: #2c3e50; }
-    .container { max-width: 600px; margin: auto; }
+    .container { max-width: 1000px; margin: auto; }
     .info { margin: 1rem 0; color: #555; }
     .session-form { margin: 2rem 0; }
     .session-key { font-weight: bold; color: #2980b9; }
     .hidden { display: none; }
     .error { color: #c0392b; }
+    .kanban-board {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 2rem;
+      justify-content: center;
+    }
+    .kanban-column {
+      background: #f4f6fa;
+      border-radius: 8px;
+      padding: 1rem;
+      min-width: 250px;
+      flex: 1 1 0;
+      box-shadow: 0 2px 8px #0001;
+      display: flex;
+      flex-direction: column;
+      max-height: 60vh;
+    }
+    .kanban-column h3 {
+      margin-top: 0;
+      text-align: center;
+    }
+    .kanban-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1 1 0;
+      overflow-y: auto;
+      min-height: 40px;
+    }
+    .kanban-card {
+      background: #fff;
+      border-radius: 5px;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      box-shadow: 0 1px 3px #0002;
+      cursor: grab;
+      user-select: none;
+    }
+    .kanban-card.dragging {
+      opacity: 0.5;
+    }
+    .kanban-add-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .kanban-add-form input {
+      flex: 1 1 0;
+      padding: 0.25rem 0.5rem;
+    }
+    .kanban-add-form button {
+      padding: 0.25rem 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -35,13 +88,9 @@
     </div>
     <div id="session-area" class="hidden">
       <h2>Session: <span id="active-session-key"></span></h2>
-      <!-- Feedback UI will go here -->
-      <div id="feedback-section"></div>
-      <form id="feedback-form" style="margin-top:1.5rem;">
-        <input type="text" id="feedback-input" placeholder="Add feedback..." required style="width:70%;">
-        <button type="submit">Add</button>
-      </form>
-      <ul id="feedback-list"></ul>
+      <div class="kanban-board" id="kanban-board">
+        <!-- Columns will be rendered here -->
+      </div>
       <button id="export-json-btn" style="margin-top:1.5rem;">Export Session as JSON</button>
     </div>
   </div>
@@ -49,6 +98,7 @@
   <script>
     const socket = io();
     let currentSessionKey = null;
+    let feedbackData = [];
 
     const createBtn = document.getElementById('create-session-btn');
     const joinForm = document.getElementById('join-session-form');
@@ -58,6 +108,14 @@
     const errorMsg = document.getElementById('error-msg');
     const sessionArea = document.getElementById('session-area');
     const activeSessionKey = document.getElementById('active-session-key');
+    const kanbanBoard = document.getElementById('kanban-board');
+    const exportBtn = document.getElementById('export-json-btn');
+
+    const COLUMNS = [
+      { key: 'wentWell', label: 'Went Well' },
+      { key: 'toImprove', label: 'To Improve' },
+      { key: 'actionItem', label: 'Action Items' }
+    ];
 
     createBtn.onclick = () => {
       socket.emit('createSession');
@@ -80,6 +138,7 @@
       createBtn.style.display = 'none';
       sessionArea.classList.remove('hidden');
       activeSessionKey.textContent = key;
+      requestFeedback();
     });
 
     socket.on('sessionJoined', (key) => {
@@ -90,40 +149,94 @@
       createBtn.style.display = 'none';
       sessionArea.classList.remove('hidden');
       activeSessionKey.textContent = key;
+      requestFeedback();
     });
 
     socket.on('sessionError', (msg) => {
       errorMsg.textContent = msg;
     });
-    // Feedback logic
-    const feedbackForm = document.getElementById('feedback-form');
-    const feedbackInput = document.getElementById('feedback-input');
-    const feedbackList = document.getElementById('feedback-list');
 
-    function renderFeedback(feedbackArr) {
-      feedbackList.innerHTML = '';
-      feedbackArr.forEach((item, idx) => {
-        const li = document.createElement('li');
-        li.textContent = item.text;
-        feedbackList.appendChild(li);
+    // Kanban rendering
+    function renderKanban(feedbackArr) {
+      kanbanBoard.innerHTML = '';
+      COLUMNS.forEach(col => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'kanban-column';
+        colDiv.dataset.column = col.key;
+
+        const h3 = document.createElement('h3');
+        h3.textContent = col.label;
+        colDiv.appendChild(h3);
+
+        // Add form
+        const form = document.createElement('form');
+        form.className = 'kanban-add-form';
+        form.onsubmit = (e) => {
+          e.preventDefault();
+          const input = form.querySelector('input');
+          const text = input.value.trim();
+          if (text && currentSessionKey) {
+            socket.emit('addFeedback', { sessionKey: currentSessionKey, text, type: col.key });
+            input.value = '';
+          }
+        };
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Add to "${col.label}"...`;
+        form.appendChild(input);
+        const btn = document.createElement('button');
+        btn.type = 'submit';
+        btn.textContent = 'Add';
+        form.appendChild(btn);
+        colDiv.appendChild(form);
+
+        // List
+        const ul = document.createElement('ul');
+        ul.className = 'kanban-list';
+        ul.dataset.column = col.key;
+
+        // Drag-and-drop events
+        ul.ondragover = (e) => {
+          e.preventDefault();
+          ul.style.background = '#e0e7ef';
+        };
+        ul.ondragleave = () => {
+          ul.style.background = '';
+        };
+        ul.ondrop = (e) => {
+          e.preventDefault();
+          ul.style.background = '';
+          const feedbackId = e.dataTransfer.getData('text/plain');
+          if (feedbackId && currentSessionKey) {
+            socket.emit('moveFeedback', { sessionKey: currentSessionKey, feedbackId, newType: col.key });
+          }
+        };
+
+        feedbackArr.filter(item => item.type === col.key).forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'kanban-card';
+          li.textContent = item.text;
+          li.draggable = true;
+          li.dataset.id = item.id;
+          li.ondragstart = (e) => {
+            li.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', item.id);
+          };
+          li.ondragend = () => {
+            li.classList.remove('dragging');
+          };
+          ul.appendChild(li);
+        });
+
+        colDiv.appendChild(ul);
+        kanbanBoard.appendChild(colDiv);
       });
-    }
-
-    // Submit feedback
-    if (feedbackForm) {
-      feedbackForm.onsubmit = (e) => {
-        e.preventDefault();
-        const text = feedbackInput.value.trim();
-        if (text && currentSessionKey) {
-          socket.emit('addFeedback', { sessionKey: currentSessionKey, text });
-          feedbackInput.value = '';
-        }
-      };
     }
 
     // Receive feedback update
     socket.on('feedbackUpdate', (feedbackArr) => {
-      renderFeedback(feedbackArr);
+      feedbackData = feedbackArr;
+      renderKanban(feedbackArr);
     });
 
     // Request feedback list after joining/creating session
@@ -133,17 +246,7 @@
       }
     }
 
-    socket.on('sessionCreated', (key) => {
-      // ...existing code...
-      requestFeedback();
-    });
-
-    socket.on('sessionJoined', (key) => {
-      // ...existing code...
-      requestFeedback();
-    });
     // Export session as JSON
-    const exportBtn = document.getElementById('export-json-btn');
     if (exportBtn) {
       exportBtn.onclick = () => {
         if (currentSessionKey) {
