@@ -66,6 +66,12 @@
     .kanban-add-form button {
       padding: 0.25rem 0.75rem;
     }
+    .timer-container {
+      text-align: center;
+      margin: 1rem 0;
+      font-size: 1.2em;
+      color: #2c3e50;
+    }
   </style>
 </head>
 <body>
@@ -75,7 +81,11 @@
       <p>Create a new session or join an existing one using a session key.</p>
     </div>
     <div class="session-form">
-      <button id="create-session-btn">Create New Session</button>
+      <form id="create-session-form" style="display:inline;">
+        <button type="submit" id="create-session-btn">Create New Session</button>
+        <label for="timer-minutes" style="margin-left:1rem;">Timer (minutes):</label>
+        <input type="number" id="timer-minutes" min="1" max="30" value="5" style="width:60px;">
+      </form>
       <form id="join-session-form" style="display:inline;">
         <input type="text" id="join-session-key" placeholder="Session Key" required>
         <button type="submit">Join Session</button>
@@ -88,6 +98,7 @@
     </div>
     <div id="session-area" class="hidden">
       <h2>Session: <span id="active-session-key"></span></h2>
+      <div class="timer-container" id="timer-container"></div>
       <div class="kanban-board" id="kanban-board">
         <!-- Columns will be rendered here -->
       </div>
@@ -99,8 +110,13 @@
     const socket = io();
     let currentSessionKey = null;
     let feedbackData = [];
+    let sessionPhase = "obfuscate";
+    let timerInterval = null;
+    let sessionEndTime = null;
 
+    const createForm = document.getElementById('create-session-form');
     const createBtn = document.getElementById('create-session-btn');
+    const timerInput = document.getElementById('timer-minutes');
     const joinForm = document.getElementById('join-session-form');
     const joinInput = document.getElementById('join-session-key');
     const sessionKeyContainer = document.getElementById('session-key-container');
@@ -110,6 +126,7 @@
     const activeSessionKey = document.getElementById('active-session-key');
     const kanbanBoard = document.getElementById('kanban-board');
     const exportBtn = document.getElementById('export-json-btn');
+    const timerContainer = document.getElementById('timer-container');
 
     const COLUMNS = [
       { key: 'wentWell', label: 'Went Well' },
@@ -117,8 +134,14 @@
       { key: 'actionItem', label: 'Action Items' }
     ];
 
-    createBtn.onclick = () => {
-      socket.emit('createSession');
+    createForm.onsubmit = (e) => {
+      e.preventDefault();
+      const minutes = parseInt(timerInput.value, 10);
+      if (isNaN(minutes) || minutes < 1 || minutes > 30) {
+        errorMsg.textContent = "Timer must be between 1 and 30 minutes.";
+        return;
+      }
+      socket.emit('createSession', { duration: minutes });
     };
 
     joinForm.onsubmit = (e) => {
@@ -129,32 +152,61 @@
       }
     };
 
-    socket.on('sessionCreated', (key) => {
+    socket.on('sessionCreated', ({ key, duration, endTime }) => {
       currentSessionKey = key;
       sessionKeySpan.textContent = key;
       sessionKeyContainer.classList.remove('hidden');
       errorMsg.textContent = '';
       joinForm.style.display = 'none';
-      createBtn.style.display = 'none';
+      createForm.style.display = 'none';
       sessionArea.classList.remove('hidden');
       activeSessionKey.textContent = key;
+      sessionPhase = "obfuscate";
+      sessionEndTime = endTime;
+      startTimer();
       requestFeedback();
     });
 
-    socket.on('sessionJoined', (key) => {
+    socket.on('sessionJoined', ({ key, duration, endTime, phase }) => {
       currentSessionKey = key;
       sessionKeyContainer.classList.add('hidden');
       errorMsg.textContent = '';
       joinForm.style.display = 'none';
-      createBtn.style.display = 'none';
+      createForm.style.display = 'none';
       sessionArea.classList.remove('hidden');
       activeSessionKey.textContent = key;
+      sessionPhase = phase || "obfuscate";
+      sessionEndTime = endTime;
+      startTimer();
       requestFeedback();
     });
 
     socket.on('sessionError', (msg) => {
       errorMsg.textContent = msg;
     });
+
+    function startTimer() {
+      if (!sessionEndTime) return;
+      clearInterval(timerInterval);
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      if (!sessionEndTime) return;
+      const now = Date.now();
+      const msLeft = sessionEndTime - now;
+      if (msLeft > 0 && sessionPhase === "obfuscate") {
+        const min = Math.floor(msLeft / 60000);
+        const sec = Math.floor((msLeft % 60000) / 1000);
+        timerContainer.textContent = `Time left: ${min}:${sec.toString().padStart(2, '0')}`;
+      } else if (sessionPhase === "obfuscate") {
+        timerContainer.textContent = "Time's up! Revealing feedback...";
+      } else {
+        timerContainer.textContent = "";
+        clearInterval(timerInterval);
+      }
+    }
 
     // Kanban rendering
     function renderKanban(feedbackArr) {
@@ -169,62 +221,70 @@
         colDiv.appendChild(h3);
 
         // Add form
-        const form = document.createElement('form');
-        form.className = 'kanban-add-form';
-        form.onsubmit = (e) => {
-          e.preventDefault();
-          const input = form.querySelector('input');
-          const text = input.value.trim();
-          if (text && currentSessionKey) {
-            socket.emit('addFeedback', { sessionKey: currentSessionKey, text, type: col.key });
-            input.value = '';
-          }
-        };
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = `Add to "${col.label}"...`;
-        form.appendChild(input);
-        const btn = document.createElement('button');
-        btn.type = 'submit';
-        btn.textContent = 'Add';
-        form.appendChild(btn);
-        colDiv.appendChild(form);
+        if (sessionPhase === "obfuscate") {
+          const form = document.createElement('form');
+          form.className = 'kanban-add-form';
+          form.onsubmit = (e) => {
+            e.preventDefault();
+            const input = form.querySelector('input');
+            const text = input.value.trim();
+            if (text && currentSessionKey) {
+              socket.emit('addFeedback', { sessionKey: currentSessionKey, text, type: col.key });
+              input.value = '';
+            }
+          };
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = `Add to "${col.label}"...`;
+          form.appendChild(input);
+          const btn = document.createElement('button');
+          btn.type = 'submit';
+          btn.textContent = 'Add';
+          form.appendChild(btn);
+          colDiv.appendChild(form);
+        }
 
         // List
         const ul = document.createElement('ul');
         ul.className = 'kanban-list';
         ul.dataset.column = col.key;
 
-        // Drag-and-drop events
-        ul.ondragover = (e) => {
-          e.preventDefault();
-          ul.style.background = '#e0e7ef';
-        };
-        ul.ondragleave = () => {
-          ul.style.background = '';
-        };
-        ul.ondrop = (e) => {
-          e.preventDefault();
-          ul.style.background = '';
-          const feedbackId = e.dataTransfer.getData('text/plain');
-          if (feedbackId && currentSessionKey) {
-            socket.emit('moveFeedback', { sessionKey: currentSessionKey, feedbackId, newType: col.key });
-          }
-        };
+        // Drag-and-drop events (only after reveal)
+        if (sessionPhase !== "obfuscate") {
+          ul.ondragover = (e) => {
+            e.preventDefault();
+            ul.style.background = '#e0e7ef';
+          };
+          ul.ondragleave = () => {
+            ul.style.background = '';
+          };
+          ul.ondrop = (e) => {
+            e.preventDefault();
+            ul.style.background = '';
+            const feedbackId = e.dataTransfer.getData('text/plain');
+            if (feedbackId && currentSessionKey) {
+              socket.emit('moveFeedback', { sessionKey: currentSessionKey, feedbackId, newType: col.key });
+            }
+          };
+        }
 
         feedbackArr.filter(item => item.type === col.key).forEach(item => {
           const li = document.createElement('li');
           li.className = 'kanban-card';
-          li.textContent = item.text;
-          li.draggable = true;
-          li.dataset.id = item.id;
-          li.ondragstart = (e) => {
-            li.classList.add('dragging');
-            e.dataTransfer.setData('text/plain', item.id);
-          };
-          li.ondragend = () => {
-            li.classList.remove('dragging');
-          };
+          if (sessionPhase === "obfuscate") {
+            li.textContent = "Feedback added";
+          } else {
+            li.textContent = item.text;
+            li.draggable = true;
+            li.dataset.id = item.id;
+            li.ondragstart = (e) => {
+              li.classList.add('dragging');
+              e.dataTransfer.setData('text/plain', item.id);
+            };
+            li.ondragend = () => {
+              li.classList.remove('dragging');
+            };
+          }
           ul.appendChild(li);
         });
 
@@ -237,6 +297,14 @@
     socket.on('feedbackUpdate', (feedbackArr) => {
       feedbackData = feedbackArr;
       renderKanban(feedbackArr);
+    });
+
+    // Receive phase update
+    socket.on('phaseUpdate', ({ phase, endTime }) => {
+      sessionPhase = phase;
+      sessionEndTime = endTime;
+      startTimer();
+      renderKanban(feedbackData);
     });
 
     // Request feedback list after joining/creating session
