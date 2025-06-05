@@ -111,12 +111,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle disconnect
+  // Handle disconnect and clean up timer
   socket.on('disconnect', () => {
     const key = socket.sessionKey;
     if (key && sessions[key]) {
       sessions[key].participants.delete(socket.id);
       if (sessions[key].participants.size === 0) {
+        if (sessions[key].timer) clearTimeout(sessions[key].timer);
         delete sessions[key];
         console.log(`Session ${key} deleted (no participants left)`);
       }
@@ -163,19 +164,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Clean up timer on session delete
-  socket.on('disconnect', () => {
-    const key = socket.sessionKey;
-    if (key && sessions[key]) {
-      sessions[key].participants.delete(socket.id);
-      if (sessions[key].participants.size === 0) {
-        if (sessions[key].timer) clearTimeout(sessions[key].timer);
-        delete sessions[key];
-        console.log(`Session ${key} deleted (no participants left)`);
-      }
-    }
-    console.log('User disconnected:', socket.id);
-  });
   // Voting: upvote/downvote feedback
   socket.on('voteFeedback', ({ sessionKey, feedbackId, vote }) => {
     if (sessions[sessionKey] && sessions[sessionKey].phase === "voting") {
